@@ -132,11 +132,11 @@ function dropPiece(col) {
 
 onValue(gameRef, (snapshot) => {
   const data = snapshot.val();
-  if (!data) return;
+  if (!data || !data.grid) return; // ✅ tambahin ini
 
   grid = data.grid;
-  currentPlayer = data.currentPlayer;
-  gameOver = data.gameOver;
+  currentPlayer = data.currentPlayer || "red";
+  gameOver = data.gameOver || false;
 
   updateUI();
   statusText.textContent =
@@ -170,6 +170,7 @@ window.restartGame = function() {
 </body>
 
 </html>
+
 
 
 
