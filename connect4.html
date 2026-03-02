@@ -137,8 +137,13 @@ function dropPiece(col) {
 
   for (let row = 5; row >= 0; row--) {
     if (!grid[row][col]) {
-      grid[row][col] = currentPlayer;
-      updateUI();
+grid[row][col] = currentPlayer;
+
+window.set(gameRef, {
+  grid: grid,
+  currentPlayer: currentPlayer,
+  gameOver: gameOver
+});
 
       if (checkWin(row, col)) {
         statusText.textContent = 
@@ -200,7 +205,23 @@ function restartGame() {
   statusText.textContent = "Giliran: 🔴 Merah";
   updateUI();
 }
+  window.onValue(gameRef, (snapshot) => {
+  const data = snapshot.val();
+  if (!data) return;
+
+  grid = data.grid;
+  currentPlayer = data.currentPlayer;
+  gameOver = data.gameOver;
+
+  updateUI();
+
+  if (!gameOver) {
+    statusText.textContent =
+      "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
+  }
+});
 </script>
 </body>
 
 </html>
+
