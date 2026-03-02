@@ -1,109 +1,38 @@
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connect 4 Realtime - Red vs Blue</title>
+    <title>Connect 4 Realtime</title>
     <style>
-        body {
-            background: #111;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: white;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
+        body { background: #111; color: white; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; }
+        #board { 
+            display: grid; 
+            grid-template-columns: repeat(7, 50px); 
+            grid-template-rows: repeat(6, 50px); 
+            gap: 8px; 
+            background: #0055ff; 
+            padding: 15px; 
+            border-radius: 10px;
         }
-
-        h1 { margin-bottom: 10px; }
-
-        #status {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            padding: 10px 20px;
-            border-radius: 8px;
-            background: #222;
+        @media (min-width: 600px) { #board { grid-template-columns: repeat(7, 80px); grid-template-rows: repeat(6, 80px); } }
+        .cell { 
+            width: 100%; height: 100%; 
+            background: #222; border-radius: 50%; 
+            cursor: pointer; border: none;
         }
-
-        #board {
-            display: grid;
-            grid-template-columns: repeat(7, 60px);
-            grid-template-rows: repeat(6, 60px);
-            gap: 10px;
-            background: #0055ff; /* Warna papan khas Connect 4 */
-            padding: 15px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        /* Responsif untuk HP */
-        @media (min-width: 600px) {
-            #board {
-                grid-template-columns: repeat(7, 80px);
-                grid-template-rows: repeat(6, 80px);
-            }
-        }
-
-        .cell {
-            width: 100%;
-            height: 100%;
-            background: #111;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: transform 0.2s, background 0.3s;
-            box-shadow: inset 0 4px 8px rgba(0,0,0,0.5);
-        }
-
-        .cell:hover {
-            transform: scale(1.05);
-            background: #222;
-        }
-
-        .cell.red {
-            background: #ff4136;
-            box-shadow: inset 0 -5px 10px rgba(0,0,0,0.4), 0 0 15px rgba(255,65,54,0.5);
-        }
-
-        .cell.blue {
-            background: #0074d9;
-            box-shadow: inset 0 -5px 10px rgba(0,0,0,0.4), 0 0 15px rgba(0,116,217,0.5);
-        }
-
-        .controls {
-            margin-top: 30px;
-        }
-
-        button {
-            padding: 12px 25px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            background: #444;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            transition: 0.2s;
-        }
-
-        button:hover {
-            background: #666;
-            transform: translateY(-2px);
-        }
-
-        button:active { transform: translateY(0); }
+        .cell.red { background: red; box-shadow: inset 0 0 10px black; }
+        .cell.blue { background: blue; box-shadow: inset 0 0 10px black; }
+        #status { margin: 20px; font-size: 20px; font-weight: bold; }
+        button { padding: 10px 20px; cursor: pointer; background: #444; color: white; border: none; border-radius: 5px; }
     </style>
 </head>
 <body>
 
     <h1>Connect 4 🔴 vs 🔵</h1>
-    <div id="status">Memuat Game...</div>
-    
+    <div id="status">Menghubungkan...</div>
     <div id="board"></div>
-
-    <div class="controls">
-        <button onclick="restartGame()">🔄 Reset & Mulai Baru</button>
-    </div>
+    <br>
+    <button onclick="restartGame()">🔄 Reset Papan</button>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -116,32 +45,18 @@
         projectId: "connect4-a1fc8",
         storageBucket: "connect4-a1fc8.firebasestorage.app",
         messagingSenderId: "205743853657",
-        appId: "1:205743853657:web:46dcf941b55c6ba8192148",
-        measurementId: "G-JFPMTX9E93"
+        appId: "1:205743853657:web:46dcf941b55c6ba8192148"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const gameRef = ref(db, "games/room1");
 
-    const boardEl = document.getElementById("board");
-    const statusText = document.getElementById("status");
-
     let grid = Array(6).fill().map(() => Array(7).fill(null));
     let currentPlayer = "red";
-    let gameOver = false;
 
-    // --- CARA BARU: EVENT DELEGATION (Klik Papan Langsung) ---
-    boardEl.addEventListener('click', (e) => {
-        // Ambil kolom dari dataset cell yang diklik
-        const col = e.target.dataset.col;
-        if (col === undefined || gameOver) return;
-        
-        console.log("Mencoba klik kolom:", col);
-        makeMove(parseInt(col));
-    });
-
-    function makeMove(col) {
+    // 1. Fungsi Klik Kolom
+    window.dropPiece = function(col) {
         let rowToFill = -1;
         for (let r = 5; r >= 0; r--) {
             if (grid[r] && grid[r][col] === null) {
@@ -151,66 +66,54 @@
         }
 
         if (rowToFill !== -1) {
-            console.log("Berhasil! Pion jatuh di baris:", rowToFill);
             grid[rowToFill][col] = currentPlayer;
             const nextPlayer = (currentPlayer === "red") ? "blue" : "red";
-
-            set(gameRef, {
-                grid: grid,
-                currentPlayer: nextPlayer,
-                gameOver: false
-            });
-        } else {
-            console.log("Kolom penuh!");
+            set(gameRef, { grid, currentPlayer: nextPlayer });
         }
-    }
-
-    // Fungsi Reset (Dibuat Global)
-    window.restartGame = function() {
-        console.log("Me-reset game...");
-        const emptyGrid = Array(6).fill().map(() => Array(7).fill(null));
-        set(gameRef, {
-            grid: emptyGrid,
-            currentPlayer: "red",
-            gameOver: false
-        });
     };
 
-    function renderUI() {
-        boardEl.innerHTML = ""; 
+    // 2. Fungsi Reset
+    window.restartGame = function() {
+        const emptyGrid = Array(6).fill().map(() => Array(7).fill(null));
+        set(gameRef, { grid: emptyGrid, currentPlayer: "red" });
+    };
+
+    // 3. Render Papan (Gambar Ulang)
+    function render() {
+        const board = document.getElementById("board");
+        board.innerHTML = "";
+        
         for (let r = 0; r < 6; r++) {
             for (let c = 0; c < 7; c++) {
                 const cell = document.createElement("div");
                 cell.className = "cell";
-                cell.dataset.row = r; // Simpan data koordinat
-                cell.dataset.col = c;
                 
+                // Tambahkan warna jika ada datanya
                 if (grid[r] && grid[r][c]) {
                     cell.classList.add(grid[r][c]);
                 }
-                boardEl.appendChild(cell);
+
+                // Pasang fungsi klik
+                cell.onclick = () => window.dropPiece(c);
+                board.appendChild(cell);
             }
         }
-        statusText.textContent = `Giliran: ${currentPlayer === 'red' ? '🔴 Merah' : '🔵 Biru'}`;
-        statusText.style.color = currentPlayer === 'red' ? '#ff4136' : '#0074d9';
+        
+        document.getElementById("status").textContent = "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
     }
 
+    // 4. Sinkronisasi Realtime
     onValue(gameRef, (snapshot) => {
         const data = snapshot.val();
-        console.log("Data diterima dari Firebase:", data);
-
-        if (!data || !data.grid) {
+        if (data && data.grid) {
+            grid = data.grid;
+            currentPlayer = data.currentPlayer || "red";
+            render();
+        } else {
+            // Jika database kosong, buatkan grid awal
             window.restartGame();
-            return;
         }
-
-        grid = data.grid;
-        currentPlayer = data.currentPlayer || "red";
-        gameOver = data.gameOver || false;
-
-        renderUI();
     });
 </script>
 </body>
 </html>
-
