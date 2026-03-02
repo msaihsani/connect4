@@ -148,41 +148,48 @@ function dropPiece(col) {
 
 onValue(gameRef, (snapshot) => {
   const data = snapshot.val();
-  
-  // Jika data belum ada di Firebase (game baru), inisialisasi
-  if (!data) {
-    restartGame(); 
+
+  // 1. Cek apakah data ada dan punya properti grid
+  if (!data || !data.grid) {
+    console.log("Data kosong, merestart game...");
+    restartGame(); // Jika kosong, buat data baru di Firebase
     return;
   }
 
+  // 2. Update variabel lokal
   grid = data.grid;
-  currentPlayer = data.currentPlayer;
-  gameOver = data.gameOver;
+  currentPlayer = data.currentPlayer || "red";
+  gameOver = data.gameOver || false;
 
+  // 3. Jalankan update tampilan
   updateUI();
 });
 
 function updateUI() {
+  // Pastikan grid sudah ada sebelum memproses elemen
+  if (!grid || !Array.isArray(grid)) return;
+
   const cells = document.querySelectorAll(".cell");
   cells.forEach(cell => {
-    const row = cell.dataset.row;
-    const col = cell.dataset.col;
-    const color = grid[row][col];
+    const row = parseInt(cell.dataset.row);
+    const col = parseInt(cell.dataset.col);
 
+    // Bersihkan warna lama
     cell.classList.remove("red", "blue");
-    if (color) {
-      cell.classList.add(color);
+
+    // Cek dengan sangat hati-hati sebelum mengakses index array
+    if (grid[row] && grid[row][col]) {
+      cell.classList.add(grid[row][col]);
     }
   });
 
   statusText.textContent = "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
 }
 
-// Ekspos fungsi restart ke global window agar onclick di HTML bisa jalan
 window.restartGame = function() {
-  const emptyGrid = Array(6).fill().map(() => Array(7).fill(null));
+  const initialGrid = Array(6).fill().map(() => Array(7).fill(null));
   set(gameRef, {
-    grid: emptyGrid,
+    grid: initialGrid,
     currentPlayer: "red",
     gameOver: false
   });
@@ -191,6 +198,7 @@ window.restartGame = function() {
 </body>
 
 </html>
+
 
 
 
