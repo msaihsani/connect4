@@ -132,17 +132,24 @@ function dropPiece(col) {
 
 onValue(gameRef, (snapshot) => {
   const data = snapshot.val();
-  if (!data || !data.grid) return; // ✅ tambahin ini
 
-  grid = data.grid;
+  if (!data || !Array.isArray(data.grid)) return;
+
+  // pastikan grid selalu 6x7
+  if (data.grid.length !== 6) return;
+
+  grid = data.grid.map(row =>
+    Array.isArray(row) ? row : Array(7).fill(null)
+  );
+
   currentPlayer = data.currentPlayer || "red";
   gameOver = data.gameOver || false;
 
   updateUI();
+
   statusText.textContent =
     "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
 });
-
 function updateUI() {
   const cells = document.querySelectorAll(".cell");
   cells.forEach(cell => {
@@ -170,6 +177,7 @@ window.restartGame = function() {
 </body>
 
 </html>
+
 
 
 
