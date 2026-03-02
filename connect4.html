@@ -74,45 +74,24 @@
 <button onclick="restartGame()" id="restartBtn">
   🔄 Restart Game
 </button>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAL_LeOEAay6vF6Y3vAr2qaV9UiAMMDS5E",
+  apiKey: "APIKEY_LU",
   authDomain: "connect4-a1fc8.firebaseapp.com",
   databaseURL: "https://connect4-a1fc8-default-rtdb.firebaseio.com",
   projectId: "connect4-a1fc8",
   storageBucket: "connect4-a1fc8.firebasestorage.app",
   messagingSenderId: "205743853657",
-  appId: "1:205743853657:web:46dcf941b55c6ba8192148",
-  measurementId: "G-JFPMTX9E93"
+  appId: "1:205743853657:web:46dcf941b55c6ba8192148"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-
 const gameRef = ref(db, "games/room1");
 
-// Kirim move
-function sendMove(data) {
-  set(gameRef, data);
-}
-
-// Terima update realtime
-onValue(gameRef, (snapshot) => {
-  const data = snapshot.val();
-  if (data) {
-    grid = data.grid;
-    currentPlayer = data.currentPlayer;
-    updateUI();
-  }
-});
-</script>
-<script>
 const board = document.getElementById("board");
 const statusText = document.getElementById("status");
 
@@ -137,28 +116,31 @@ function dropPiece(col) {
 
   for (let row = 5; row >= 0; row--) {
     if (!grid[row][col]) {
-grid[row][col] = currentPlayer;
+      grid[row][col] = currentPlayer;
 
-window.set(gameRef, {
-  grid: grid,
-  currentPlayer: currentPlayer,
-  gameOver: gameOver
-});
+      set(gameRef, {
+        grid: grid,
+        currentPlayer: currentPlayer,
+        gameOver: gameOver
+      });
 
-      if (checkWin(row, col)) {
-        statusText.textContent = 
-          (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru") + " MENANG 🔥";
-        gameOver = true;
-        return;
-      }
-
-      currentPlayer = currentPlayer === "red" ? "blue" : "red";
-      statusText.textContent = 
-        "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
-      return;
+      break;
     }
   }
 }
+
+onValue(gameRef, (snapshot) => {
+  const data = snapshot.val();
+  if (!data) return;
+
+  grid = data.grid;
+  currentPlayer = data.currentPlayer;
+  gameOver = data.gameOver;
+
+  updateUI();
+  statusText.textContent =
+    "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
+});
 
 function updateUI() {
   const cells = document.querySelectorAll(".cell");
@@ -172,56 +154,20 @@ function updateUI() {
   });
 }
 
-function checkWin(row, col) {
-  return (
-    countDirection(row, col, 0, 1) + countDirection(row, col, 0, -1) > 2 || // horizontal
-    countDirection(row, col, 1, 0) > 2 || // vertical
-    countDirection(row, col, 1, 1) + countDirection(row, col, -1, -1) > 2 || // diagonal \
-    countDirection(row, col, 1, -1) + countDirection(row, col, -1, 1) > 2 // diagonal /
-  );
-}
-
-function countDirection(row, col, rowDir, colDir) {
-  let count = 0;
-  let r = row + rowDir;
-  let c = col + colDir;
-
-  while (
-    r >= 0 && r < 6 &&
-    c >= 0 && c < 7 &&
-    grid[r][c] === currentPlayer
-  ) {
-    count++;
-    r += rowDir;
-    c += colDir;
-  }
-
-  return count;
-}
-function restartGame() {
+window.restartGame = function() {
   grid = Array(6).fill().map(() => Array(7).fill(null));
   currentPlayer = "red";
   gameOver = false;
-  statusText.textContent = "Giliran: 🔴 Merah";
-  updateUI();
-}
-  window.onValue(gameRef, (snapshot) => {
-  const data = snapshot.val();
-  if (!data) return;
 
-  grid = data.grid;
-  currentPlayer = data.currentPlayer;
-  gameOver = data.gameOver;
-
-  updateUI();
-
-  if (!gameOver) {
-    statusText.textContent =
-      "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
-  }
-});
+  set(gameRef, {
+    grid: grid,
+    currentPlayer: currentPlayer,
+    gameOver: gameOver
+  });
+};
 </script>
 </body>
 
 </html>
+
 
