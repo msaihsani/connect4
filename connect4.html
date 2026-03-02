@@ -2,131 +2,153 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Connect 4 Realtime - Fixed</title>
+    <title>Connect 4 - Player vs Bot</title>
     <style>
         body { background: #111; color: white; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; padding: 20px; }
         #board { 
             display: grid; grid-template-columns: repeat(7, 50px); grid-template-rows: repeat(6, 50px); 
-            gap: 8px; background: #0055ff; padding: 15px; border-radius: 10px;
+            gap: 8px; background: #0055ff; padding: 15px; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.5);
         }
         @media (min-width: 600px) { #board { grid-template-columns: repeat(7, 80px); grid-template-rows: repeat(6, 80px); } }
-        .cell { width: 100%; height: 100%; background: #222; border-radius: 50%; cursor: pointer; border: none; }
-        .cell.red { background: #ff4136; box-shadow: inset 0 0 10px black; }
-        .cell.blue { background: #0074d9; box-shadow: inset 0 0 10px black; }
-        #status { margin: 20px; font-size: 20px; font-weight: bold; background: #222; padding: 10px 20px; border-radius: 8px; }
+        .cell { width: 100%; height: 100%; background: #222; border-radius: 50%; cursor: pointer; border: none; transition: 0.2s; }
+        .cell.red { background: #ff4136; box-shadow: inset 0 0 15px rgba(0,0,0,0.6); }
+        .cell.blue { background: #0074d9; box-shadow: inset 0 0 15px rgba(0,0,0,0.6); }
+        #status { margin: 20px; font-size: 24px; font-weight: bold; min-height: 35px; }
         button { padding: 10px 25px; cursor: pointer; background: #444; color: white; border: none; border-radius: 5px; font-weight: bold; }
         button:hover { background: #666; }
     </style>
 </head>
 <body>
 
-    <h1>Connect 4 🔴 vs 🔵</h1>
-    <div id="status">Menghubungkan ke Firebase...</div>
+    <h1>Connect 4: Kamu vs Bot 🤖</h1>
+    <div id="status">Giliranmu: 🔴</div>
     <div id="board"></div>
     <br>
-    <button id="btnReset">🔄 Reset Papan</button>
+    <button onclick="resetGame()">🔄 Ulang Permainan</button>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyAL_LeOEAay6vF6Y3vAr2qaV9UiAMMDS5E",
-        authDomain: "connect4-a1fc8.firebaseapp.com",
-        databaseURL: "https://connect4-a1fc8-default-rtdb.firebaseio.com",
-        projectId: "connect4-a1fc8",
-        storageBucket: "connect4-a1fc8.firebasestorage.app",
-        messagingSenderId: "205743853657",
-        appId: "1:205743853657:web:46dcf941b55c6ba8192148",
-        measurementId: "G-JFPMTX9E93"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const gameRef = ref(db, "games/room1");
+<script>
+    const ROWS = 6;
+    const COLS = 7;
+    let grid = Array(ROWS).fill().map(() => Array(COLS).fill(null));
+    let currentPlayer = "red"; // Red = Kamu, Blue = Bot
+    let gameOver = false;
 
     const boardEl = document.getElementById("board");
     const statusText = document.getElementById("status");
 
-    let grid = [];
-    let currentPlayer = "red";
-    let gameOver = false;
-
-    // Fungsi Jatuhkan Pion
-    window.dropPiece = function(col) {
-        if (gameOver) return;
-        
-        let rowToFill = -1;
-        for (let r = 5; r >= 0; r--) {
-            if (grid[r] && grid[r][col] === null) {
-                rowToFill = r;
-                break;
-            }
-        }
-
-        if (rowToFill !== -1) {
-            grid[rowToFill][col] = currentPlayer;
-            const nextPlayer = (currentPlayer === "red") ? "blue" : "red";
-            
-            // Update ke Firebase
-            set(gameRef, { 
-                grid: grid, 
-                currentPlayer: nextPlayer,
-                gameOver: false 
-            });
-        }
-    };
-
-    // Fungsi Reset
-    window.restartGame = function() {
-        const emptyGrid = Array(6).fill().map(() => Array(7).fill(null));
-        set(gameRef, { 
-            grid: emptyGrid, 
-            currentPlayer: "red",
-            gameOver: false 
-        });
-    };
-
-    // Fungsi Gambar Papan
-    function renderUI() {
+    function initBoard() {
         boardEl.innerHTML = "";
-        for (let r = 0; r < 6; r++) {
-            for (let c = 0; c < 7; c++) {
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
                 const cell = document.createElement("div");
                 cell.className = "cell";
-                
-                // Cek isi grid dan tambahkan warna
-                if (grid[r] && grid[r][c]) {
-                    cell.classList.add(grid[r][c]);
-                }
-
-                cell.onclick = () => window.dropPiece(c);
+                cell.id = `cell-${r}-${c}`;
+                cell.onclick = () => playerMove(c);
                 boardEl.appendChild(cell);
             }
         }
-        statusText.textContent = `Giliran: ${currentPlayer === 'red' ? '🔴 Merah' : '🔵 Biru'}`;
     }
 
-    // Mendengarkan Firebase (Realtime)
-    onValue(gameRef, (snapshot) => {
-        const data = snapshot.val();
-        
-        // Jika data belum ada atau grid belum dibuat di Firebase
-        if (!data || !data.grid) {
-            window.restartGame();
-            return;
+    function playerMove(col) {
+        if (gameOver || currentPlayer !== "red") return;
+        if (makeMove(col, "red")) {
+            if (!gameOver) {
+                currentPlayer = "blue";
+                statusText.textContent = "Bot sedang berpikir... 🤖";
+                setTimeout(botMove, 600); // Bot mikir 0.6 detik
+            }
         }
+    }
 
-        grid = data.grid;
-        currentPlayer = data.currentPlayer;
-        gameOver = data.gameOver;
+    function botMove() {
+        if (gameOver) return;
+        
+        // Strategi Bot: 1. Cari kemenangan, 2. Blokir lawan, 3. Random
+        let move = findWinningMove("blue") || findWinningMove("red") || randomMove();
+        
+        makeMove(move, "blue");
+        if (!gameOver) {
+            currentPlayer = "red";
+            statusText.textContent = "Giliranmu: 🔴";
+        }
+    }
 
-        renderUI();
-    });
+    function makeMove(col, color) {
+        for (let r = ROWS - 1; r >= 0; r--) {
+            if (grid[r][col] === null) {
+                grid[r][col] = color;
+                updateUI();
+                if (checkWin(r, col, color)) {
+                    statusText.textContent = color === "red" ? "Kamu Menang! 🎉" : "Bot Menang! 🤖";
+                    gameOver = true;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
 
-    // Pasang tombol reset
-    document.getElementById("btnReset").onclick = window.restartGame;
+    function findWinningMove(color) {
+        for (let c = 0; c < COLS; c++) {
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (grid[r][c] === null) {
+                    grid[r][c] = color;
+                    let win = checkWin(r, c, color);
+                    grid[r][c] = null; // Reset lagi
+                    if (win) return c;
+                    break;
+                }
+            }
+        }
+        return null;
+    }
+
+    function randomMove() {
+        let validCols = [];
+        for (let c = 0; c < COLS; c++) if (grid[0][c] === null) validCols.push(c);
+        return validCols[Math.floor(Math.random() * validCols.length)];
+    }
+
+    function updateUI() {
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const cell = document.getElementById(`cell-${r}-${c}`);
+                cell.className = "cell";
+                if (grid[r][c]) cell.classList.add(grid[r][c]);
+            }
+        }
+    }
+
+    function checkWin(r, c, color) {
+        return (
+            checkDir(r, c, 0, 1, color) + checkDir(r, c, 0, -1, color) >= 3 || // Horiz
+            checkDir(r, c, 1, 0, color) + checkDir(r, c, -1, 0, color) >= 3 || // Vert
+            checkDir(r, c, 1, 1, color) + checkDir(r, c, -1, -1, color) >= 3 || // Diag \
+            checkDir(r, c, 1, -1, color) + checkDir(r, c, -1, 1, color) >= 3    // Diag /
+        );
+    }
+
+    function checkDir(row, col, rDir, cDir, color) {
+        let count = 0;
+        let r = row + rDir;
+        let c = col + cDir;
+        while (r >= 0 && r < ROWS && c >= 0 && c < COLS && grid[r][c] === color) {
+            count++;
+            r += rDir;
+            c += cDir;
+        }
+        return count;
+    }
+
+    window.resetGame = function() {
+        grid = Array(ROWS).fill().map(() => Array(COLS).fill(null));
+        currentPlayer = "red";
+        gameOver = false;
+        statusText.textContent = "Giliranmu: 🔴";
+        updateUI();
+    };
+
+    initBoard();
 </script>
 </body>
 </html>
-
