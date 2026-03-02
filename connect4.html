@@ -119,6 +119,9 @@ function dropPiece(col) {
     if (!grid[row][col]) {
       grid[row][col] = currentPlayer;
 
+      // 🔥 TAMBAH INI
+      currentPlayer = currentPlayer === "red" ? "blue" : "red";
+
       set(gameRef, {
         grid: grid,
         currentPlayer: currentPlayer,
@@ -177,6 +180,7 @@ window.restartGame = function() {
 </body>
 
 </html>
+
 
 
 
