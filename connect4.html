@@ -155,11 +155,21 @@ onValue(gameRef, (snapshot) => {
 });
 function updateUI() {
   const cells = document.querySelectorAll(".cell");
+
   cells.forEach(cell => {
-    const row = cell.dataset.row;
-    const col = cell.dataset.col;
+    const row = parseInt(cell.dataset.row);
+    const col = parseInt(cell.dataset.col);
+
     cell.classList.remove("red", "blue");
-    if (grid[row][col]) {
+
+    // 🔥 TAMBAHAN PENGAMAN
+    if (
+      grid &&
+      Array.isArray(grid) &&
+      grid[row] &&
+      Array.isArray(grid[row]) &&
+      grid[row][col]
+    ) {
       cell.classList.add(grid[row][col]);
     }
   });
@@ -180,6 +190,7 @@ window.restartGame = function() {
 </body>
 
 </html>
+
 
 
 
