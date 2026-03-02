@@ -27,11 +27,9 @@
     <button id="btnReset">🔄 Reset Papan</button>
 
 <script type="module">
-    // Menggunakan Import dari CDN agar tidak perlu install apa-apa
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // Konfigurasi asli milikmu
     const firebaseConfig = {
         apiKey: "AIzaSyAL_LeOEAay6vF6Y3vAr2qaV9UiAMMDS5E",
         authDomain: "connect4-a1fc8.firebaseapp.com",
@@ -43,18 +41,21 @@
         measurementId: "G-JFPMTX9E93"
     };
 
-    // Inisialisasi
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const gameRef = ref(db, "games/room1");
 
-    let grid = Array(6).fill().map(() => Array(7).fill(null));
+    const boardEl = document.getElementById("board");
+    const statusText = document.getElementById("status");
+
+    let grid = [];
     let currentPlayer = "red";
     let gameOver = false;
 
-    // FUNGSI JATUHKAN PION
+    // Fungsi Jatuhkan Pion
     window.dropPiece = function(col) {
         if (gameOver) return;
+        
         let rowToFill = -1;
         for (let r = 5; r >= 0; r--) {
             if (grid[r] && grid[r][col] === null) {
@@ -62,9 +63,12 @@
                 break;
             }
         }
+
         if (rowToFill !== -1) {
             grid[rowToFill][col] = currentPlayer;
             const nextPlayer = (currentPlayer === "red") ? "blue" : "red";
+            
+            // Update ke Firebase
             set(gameRef, { 
                 grid: grid, 
                 currentPlayer: nextPlayer,
@@ -73,7 +77,7 @@
         }
     };
 
-    // FUNGSI RESET
+    // Fungsi Reset
     window.restartGame = function() {
         const emptyGrid = Array(6).fill().map(() => Array(7).fill(null));
         set(gameRef, { 
@@ -83,41 +87,46 @@
         });
     };
 
-    // FUNGSI GAMBAR PAPAN
-    function render() {
-        const board = document.getElementById("board");
-        board.innerHTML = "";
+    // Fungsi Gambar Papan
+    function renderUI() {
+        boardEl.innerHTML = "";
         for (let r = 0; r < 6; r++) {
             for (let c = 0; c < 7; c++) {
                 const cell = document.createElement("div");
                 cell.className = "cell";
-                if (grid[r][r] !== undefined && grid[r][c]) {
+                
+                // Cek isi grid dan tambahkan warna
+                if (grid[r] && grid[r][c]) {
                     cell.classList.add(grid[r][c]);
                 }
+
                 cell.onclick = () => window.dropPiece(c);
-                board.appendChild(cell);
+                boardEl.appendChild(cell);
             }
         }
-        document.getElementById("status").textContent = "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
+        statusText.textContent = `Giliran: ${currentPlayer === 'red' ? '🔴 Merah' : '🔵 Biru'}`;
     }
 
-    // SINKRONISASI REALTIME
+    // Mendengarkan Firebase (Realtime)
     onValue(gameRef, (snapshot) => {
         const data = snapshot.val();
-        if (data && data.grid) {
-            grid = data.grid;
-            currentPlayer = data.currentPlayer || "red";
-            gameOver = data.gameOver || false;
-            render();
-        } else {
-            window.restartGame(); // Inisialisasi otomatis jika data kosong
+        
+        // Jika data belum ada atau grid belum dibuat di Firebase
+        if (!data || !data.grid) {
+            window.restartGame();
+            return;
         }
-    }, (err) => {
-        console.error("Firebase Error:", err);
-        document.getElementById("status").textContent = "Error: Cek Rules Firebase!";
+
+        grid = data.grid;
+        currentPlayer = data.currentPlayer;
+        gameOver = data.gameOver;
+
+        renderUI();
     });
 
+    // Pasang tombol reset
     document.getElementById("btnReset").onclick = window.restartGame;
 </script>
 </body>
 </html>
+
