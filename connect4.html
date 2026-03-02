@@ -1,209 +1,180 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Connect 4 - Red vs Blue</title>
-<style>
-  body {
-    background: #111;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    color: white;
-    font-family: Arial, sans-serif;
-  }
+    <meta charset="UTF-8">
+    <title>Connect 4 - Realtime</title>
+    <style>
+        body {
+            background: #111;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
-  h1 {
-    margin-top: 20px;
-  }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(7, 70px);
+            grid-template-rows: repeat(6, 70px);
+            gap: 10px;
+            background: #222;
+            padding: 15px;
+            border-radius: 10px;
+            border: 4px solid #444;
+            margin-top: 20px;
+        }
 
-  #board {
-    display: grid;
-    grid-template-columns: repeat(7, 80px);
-    grid-template-rows: repeat(6, 80px);
-    gap: 8px;
-    background: #222;
-    padding: 10px;
-    border-radius: 10px;
-    margin-top: 20px;
-  }
+        .cell {
+            width: 70px;
+            height: 70px;
+            background: #333;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
 
-  .cell {
-    width: 80px;
-    height: 80px;
-    background: #333;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: 0.2s;
-  }
+        .cell:hover { background: #444; }
+        .cell.red { background: #ff4136; box-shadow: inset 0 0 15px #801000; }
+        .cell.blue { background: #0074d9; box-shadow: inset 0 0 15px #003060; }
 
-  .red {
-    background: red;
-  }
+        #status {
+            margin-top: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
 
-  .blue {
-    background: blue;
-  }
-
-  #status {
-    margin-top: 20px;
-    font-size: 18px;
-  }
-#restartBtn {
-  margin-top: 15px;
-  padding: 10px 20px;
-  font-size: 16px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  background: #444;
-  color: white;
-  transition: 0.2s;
-}
-
-#restartBtn:hover {
-  background: #666;
-}
-</style>
+        button {
+            margin-top: 20px;
+            padding: 10px 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        
+        button:hover { background: #777; }
+    </style>
 </head>
 <body>
 
 <h1>Connect 4 🔴 vs 🔵</h1>
+<div id="status">Memuat Game...</div>
 <div id="board"></div>
-<div id="status">Giliran: 🔴 Merah</div>
-<button onclick="restartGame()" id="restartBtn">
-  🔄 Restart Game
-</button>
+<button onclick="restartGame()">🔄 Reset Papan</button>
+
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAL_LeOEAay6vF6Y3vAr2qaV9UiAMMDS5E",
-  authDomain: "connect4-a1fc8.firebaseapp.com",
-  databaseURL: "https://connect4-a1fc8-default-rtdb.firebaseio.com",
-  projectId: "connect4-a1fc8",
-  storageBucket: "connect4-a1fc8.firebasestorage.app",
-  messagingSenderId: "205743853657",
-  appId: "1:205743853657:web:46dcf941b55c6ba8192148",
-  measurementId: "G-JFPMTX9E93"
-};
+    const firebaseConfig = {
+        apiKey: "AIzaSyAL_LeOEAay6vF6Y3vAr2qaV9UiAMMDS5E",
+        authDomain: "connect4-a1fc8.firebaseapp.com",
+        databaseURL: "https://connect4-a1fc8-default-rtdb.firebaseio.com",
+        projectId: "connect4-a1fc8",
+        storageBucket: "connect4-a1fc8.firebasestorage.app",
+        messagingSenderId: "205743853657",
+        appId: "1:205743853657:web:46dcf941b55c6ba8192148",
+        measurementId: "G-JFPMTX9E93"
+    };
 
-// ... (Firebase config tetap sama)
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const gameRef = ref(db, "games/room1");
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const gameRef = ref(db, "games/room1");
+    let grid = [];
+    let currentPlayer = "red";
+    let gameOver = false;
 
-const board = document.getElementById("board");
-const statusText = document.getElementById("status");
+    // Inisialisasi visual board pertama kali
+    const boardEl = document.getElementById("board");
+    const statusText = document.getElementById("status");
 
-let currentPlayer = "red";
-let gameOver = false;
-let grid = Array(6).fill().map(() => Array(7).fill(null));
-
-// Buat grid secara visual
-function createBoard() {
-  board.innerHTML = ""; // Bersihkan board dulu
-  for (let row = 0; row < 6; row++) {
-    for (let col = 0; col < 7; col++) {
-      const cell = document.createElement("div");
-      cell.classList.add("cell");
-      cell.dataset.row = row;
-      cell.dataset.col = col;
-      // Gunakan event listener di sini
-      cell.addEventListener("click", () => dropPiece(col));
-      board.appendChild(cell);
+    function createCells() {
+        boardEl.innerHTML = "";
+        for (let r = 0; r < 6; r++) {
+            for (let c = 0; c < 7; c++) {
+                const cell = document.createElement("div");
+                cell.className = "cell";
+                cell.id = `cell-${r}-${c}`;
+                cell.onclick = () => handleMove(c);
+                boardEl.appendChild(cell);
+            }
+        }
     }
-  }
-}
 
-createBoard();
+    createCells();
 
-function dropPiece(col) {
-  if (gameOver) return;
+    // Fungsi klik kolom
+    function handleMove(col) {
+        if (gameOver) return;
 
-  // Cari baris kosong dari bawah
-  let placed = false;
-  for (let row = 5; row >= 0; row--) {
-    if (!grid[row][col]) {
-      grid[row][col] = currentPlayer;
-      placed = true;
-      break;
+        // Cari baris kosong dari bawah ke atas
+        let rowToFill = -1;
+        for (let r = 5; r >= 0; r--) {
+            if (grid[r] && grid[r][col] === null) {
+                rowToFill = r;
+                break;
+            }
+        }
+
+        if (rowToFill !== -1) {
+            // Update data lokal
+            grid[rowToFill][col] = currentPlayer;
+            const nextPlayer = (currentPlayer === "red") ? "blue" : "red";
+
+            // Simpan ke Firebase
+            set(gameRef, {
+                grid: grid,
+                currentPlayer: nextPlayer,
+                gameOver: false
+            });
+        }
     }
-  }
 
-  if (placed) {
-    // Ganti giliran
-    const nextPlayer = currentPlayer === "red" ? "blue" : "red";
-    
-    // Kirim ke Firebase
-    set(gameRef, {
-      grid: grid,
-      currentPlayer: nextPlayer,
-      gameOver: gameOver
+    // Dengarkan perubahan dari Firebase
+    onValue(gameRef, (snapshot) => {
+        const data = snapshot.val();
+        
+        // Jika data kosong di Firebase, buat baru
+        if (!data || !data.grid) {
+            window.restartGame();
+            return;
+        }
+
+        grid = data.grid;
+        currentPlayer = data.currentPlayer;
+        gameOver = data.gameOver;
+
+        updateUI();
     });
-  }
-}
 
-onValue(gameRef, (snapshot) => {
-  const data = snapshot.val();
+    function updateUI() {
+        for (let r = 0; r < 6; r++) {
+            for (let c = 0; c < 7; c++) {
+                const cell = document.getElementById(`cell-${r}-${c}`);
+                const value = grid[r][c];
+                
+                cell.className = "cell"; // reset class
+                if (value) cell.classList.add(value);
+            }
+        }
 
-  // 1. Cek apakah data ada dan punya properti grid
-  if (!data || !data.grid) {
-    console.log("Data kosong, merestart game...");
-    restartGame(); // Jika kosong, buat data baru di Firebase
-    return;
-  }
-
-  // 2. Update variabel lokal
-  grid = data.grid;
-  currentPlayer = data.currentPlayer || "red";
-  gameOver = data.gameOver || false;
-
-  // 3. Jalankan update tampilan
-  updateUI();
-});
-
-function updateUI() {
-  // Pastikan grid sudah ada sebelum memproses elemen
-  if (!grid || !Array.isArray(grid)) return;
-
-  const cells = document.querySelectorAll(".cell");
-  cells.forEach(cell => {
-    const row = parseInt(cell.dataset.row);
-    const col = parseInt(cell.dataset.col);
-
-    // Bersihkan warna lama
-    cell.classList.remove("red", "blue");
-
-    // Cek dengan sangat hati-hati sebelum mengakses index array
-    if (grid[row] && grid[row][col]) {
-      cell.classList.add(grid[row][col]);
+        statusText.textContent = `Giliran: ${currentPlayer === 'red' ? '🔴 Merah' : '🔵 Biru'}`;
     }
-  });
 
-  statusText.textContent = "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
-}
+    // Fungsi reset global
+    window.restartGame = function() {
+        const emptyGrid = Array(6).fill().map(() => Array(7).fill(null));
+        set(gameRef, {
+            grid: emptyGrid,
+            currentPlayer: "red",
+            gameOver: false
+        });
+    };
 
-window.restartGame = function() {
-  const initialGrid = Array(6).fill().map(() => Array(7).fill(null));
-  set(gameRef, {
-    grid: initialGrid,
-    currentPlayer: "red",
-    gameOver: false
-  });
-};
 </script>
 </body>
-
 </html>
-
-
-
-
-
-
-
-
-
