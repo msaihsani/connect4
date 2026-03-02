@@ -74,7 +74,44 @@
 <button onclick="restartGame()" id="restartBtn">
   🔄 Restart Game
 </button>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
 
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAL_LeOEAay6vF6Y3vAr2qaV9UiAMMDS5E",
+  authDomain: "connect4-a1fc8.firebaseapp.com",
+  databaseURL: "https://connect4-a1fc8-default-rtdb.firebaseio.com",
+  projectId: "connect4-a1fc8",
+  storageBucket: "connect4-a1fc8.firebasestorage.app",
+  messagingSenderId: "205743853657",
+  appId: "1:205743853657:web:46dcf941b55c6ba8192148",
+  measurementId: "G-JFPMTX9E93"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const gameRef = ref(db, "games/room1");
+
+// Kirim move
+function sendMove(data) {
+  set(gameRef, data);
+}
+
+// Terima update realtime
+onValue(gameRef, (snapshot) => {
+  const data = snapshot.val();
+  if (data) {
+    grid = data.grid;
+    currentPlayer = data.currentPlayer;
+    updateUI();
+  }
+});
+</script>
 <script>
 const board = document.getElementById("board");
 const statusText = document.getElementById("status");
@@ -165,4 +202,5 @@ function restartGame() {
 }
 </script>
 </body>
+
 </html>
