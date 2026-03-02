@@ -1,35 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Connect 4 - Realtime Firebase</title>
+    <title>Connect 4 Realtime - Fixed</title>
     <style>
-        body { background: #111; display: flex; flex-direction: column; align-items: center; color: white; font-family: Arial, sans-serif; }
-        h1 { margin-top: 20px; }
+        body { background: #111; color: white; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; padding: 20px; }
         #board { 
-            display: grid; grid-template-columns: repeat(7, 60px); grid-template-rows: repeat(6, 60px); 
-            gap: 8px; background: #0055ff; padding: 15px; border-radius: 10px; margin-top: 20px;
+            display: grid; grid-template-columns: repeat(7, 50px); grid-template-rows: repeat(6, 50px); 
+            gap: 8px; background: #0055ff; padding: 15px; border-radius: 10px;
         }
         @media (min-width: 600px) { #board { grid-template-columns: repeat(7, 80px); grid-template-rows: repeat(6, 80px); } }
-        .cell { width: 100%; height: 100%; background: #222; border-radius: 50%; cursor: pointer; transition: 0.2s; }
-        .red { background: #ff4136; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
-        .blue { background: #0074d9; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
-        #status { margin-top: 20px; font-size: 22px; font-weight: bold; }
-        #restartBtn { margin-top: 15px; padding: 10px 20px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; background: #444; color: white; }
-        #restartBtn:hover { background: #666; }
+        .cell { width: 100%; height: 100%; background: #222; border-radius: 50%; cursor: pointer; border: none; }
+        .cell.red { background: #ff4136; box-shadow: inset 0 0 10px black; }
+        .cell.blue { background: #0074d9; box-shadow: inset 0 0 10px black; }
+        #status { margin: 20px; font-size: 20px; font-weight: bold; background: #222; padding: 10px 20px; border-radius: 8px; }
+        button { padding: 10px 25px; cursor: pointer; background: #444; color: white; border: none; border-radius: 5px; font-weight: bold; }
+        button:hover { background: #666; }
     </style>
 </head>
 <body>
 
-<h1>Connect 4 🔴 vs 🔵</h1>
-<div id="status">Menghubungkan ke Firebase...</div>
-<div id="board"></div>
-<button id="restartBtn">🔄 Restart Game</button>
+    <h1>Connect 4 🔴 vs 🔵</h1>
+    <div id="status">Menghubungkan ke Firebase...</div>
+    <div id="board"></div>
+    <br>
+    <button id="btnReset">🔄 Reset Papan</button>
 
 <script type="module">
+    // Menggunakan Import dari CDN agar tidak perlu install apa-apa
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+    // Konfigurasi asli milikmu
     const firebaseConfig = {
         apiKey: "AIzaSyAL_LeOEAay6vF6Y3vAr2qaV9UiAMMDS5E",
         authDomain: "connect4-a1fc8.firebaseapp.com",
@@ -37,40 +39,22 @@
         projectId: "connect4-a1fc8",
         storageBucket: "connect4-a1fc8.firebasestorage.app",
         messagingSenderId: "205743853657",
-        appId: "1:205743853657:web:46dcf941b55c6ba8192148"
+        appId: "1:205743853657:web:46dcf941b55c6ba8192148",
+        measurementId: "G-JFPMTX9E93"
     };
 
+    // Inisialisasi
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const gameRef = ref(db, "games/room1");
-
-    const board = document.getElementById("board");
-    const statusText = document.getElementById("status");
-    const restartBtn = document.getElementById("restartBtn");
 
     let grid = Array(6).fill().map(() => Array(7).fill(null));
     let currentPlayer = "red";
     let gameOver = false;
 
-    // --- 1. INISIALISASI PAPAN ---
-    function createBoard() {
-        board.innerHTML = "";
-        for (let r = 0; r < 6; r++) {
-            for (let c = 0; c < 7; c++) {
-                const cell = document.createElement("div");
-                cell.classList.add("cell");
-                cell.id = `cell-${r}-${c}`;
-                cell.onclick = () => dropPiece(c);
-                board.appendChild(cell);
-            }
-        }
-    }
-    createBoard();
-
-    // --- 2. LOGIKA JATUHKAN PION ---
-    function dropPiece(col) {
+    // FUNGSI JATUHKAN PION
+    window.dropPiece = function(col) {
         if (gameOver) return;
-
         let rowToFill = -1;
         for (let r = 5; r >= 0; r--) {
             if (grid[r] && grid[r][col] === null) {
@@ -78,88 +62,62 @@
                 break;
             }
         }
-
         if (rowToFill !== -1) {
-            // Update lokal sebentar untuk cek menang
             grid[rowToFill][col] = currentPlayer;
-            
-            let isWinner = checkWin(rowToFill, col);
-            let nextPlayer = currentPlayer === "red" ? "blue" : "red";
-
-            // KIRIM KE FIREBASE
-            set(gameRef, {
-                grid: grid,
+            const nextPlayer = (currentPlayer === "red") ? "blue" : "red";
+            set(gameRef, { 
+                grid: grid, 
                 currentPlayer: nextPlayer,
-                gameOver: isWinner,
-                winner: isWinner ? currentPlayer : null
+                gameOver: false 
             });
         }
-    }
+    };
 
-    // --- 3. SINKRONISASI REALTIME ---
-    onValue(gameRef, (snapshot) => {
-        const data = snapshot.val();
-        if (!data) {
-            restartGame(); // Jika database kosong, buat baru
-            return;
-        }
+    // FUNGSI RESET
+    window.restartGame = function() {
+        const emptyGrid = Array(6).fill().map(() => Array(7).fill(null));
+        set(gameRef, { 
+            grid: emptyGrid, 
+            currentPlayer: "red",
+            gameOver: false 
+        });
+    };
 
-        grid = data.grid;
-        currentPlayer = data.currentPlayer;
-        gameOver = data.gameOver;
-
-        updateUI(data.winner);
-    });
-
-    function updateUI(winner) {
+    // FUNGSI GAMBAR PAPAN
+    function render() {
+        const board = document.getElementById("board");
+        board.innerHTML = "";
         for (let r = 0; r < 6; r++) {
             for (let c = 0; c < 7; c++) {
-                const cell = document.getElementById(`cell-${r}-${c}`);
-                cell.className = "cell"; // Reset
-                if (grid[r][c]) cell.classList.add(grid[r][c]);
+                const cell = document.createElement("div");
+                cell.className = "cell";
+                if (grid[r][r] !== undefined && grid[r][c]) {
+                    cell.classList.add(grid[r][c]);
+                }
+                cell.onclick = () => window.dropPiece(c);
+                board.appendChild(cell);
             }
         }
+        document.getElementById("status").textContent = "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
+    }
 
-        if (gameOver && winner) {
-            statusText.textContent = (winner === "red" ? "🔴 Merah" : "🔵 Biru") + " MENANG 🔥";
+    // SINKRONISASI REALTIME
+    onValue(gameRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data && data.grid) {
+            grid = data.grid;
+            currentPlayer = data.currentPlayer || "red";
+            gameOver = data.gameOver || false;
+            render();
         } else {
-            statusText.textContent = "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
+            window.restartGame(); // Inisialisasi otomatis jika data kosong
         }
-    }
+    }, (err) => {
+        console.error("Firebase Error:", err);
+        document.getElementById("status").textContent = "Error: Cek Rules Firebase!";
+    });
 
-    // --- 4. LOGIKA CEK MENANG ---
-    function checkWin(row, col) {
-        return (
-            countDir(row, col, 0, 1) + countDir(row, col, 0, -1) > 2 || // Horizontal
-            countDir(row, col, 1, 0) > 2 || // Vertical
-            countDir(row, col, 1, 1) + countDir(row, col, -1, -1) > 2 || // Diagonal \
-            countDir(row, col, 1, -1) + countDir(row, col, -1, 1) > 2    // Diagonal /
-        );
-    }
-
-    function countDir(row, col, rowDir, colDir) {
-        let count = 0;
-        let r = row + rowDir;
-        let c = col + colDir;
-        while (r >= 0 && r < 6 && c >= 0 && c < 7 && grid[r][c] === currentPlayer) {
-            count++;
-            r += rowDir;
-            c += colDir;
-        }
-        return count;
-    }
-
-    // --- 5. RESTART ---
-    function restartGame() {
-        set(gameRef, {
-            grid: Array(6).fill().map(() => Array(7).fill(null)),
-            currentPlayer: "red",
-            gameOver: false,
-            winner: null
-        });
-    }
-
-    restartBtn.addEventListener("click", restartGame);
+    document.getElementById("btnReset").onclick = window.restartGame;
 </script>
 </body>
 </html>
