@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Connect 4 - Player vs Bot</title>
+    <title>Connect 4 - Giliran Rawak</title>
     <style>
         body { background: #111; color: white; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; padding: 20px; }
         #board { 
@@ -13,25 +13,26 @@
         .cell { width: 100%; height: 100%; background: #222; border-radius: 50%; cursor: pointer; border: none; transition: 0.2s; }
         .cell.red { background: #ff4136; box-shadow: inset 0 0 15px rgba(0,0,0,0.6); }
         .cell.blue { background: #0074d9; box-shadow: inset 0 0 15px rgba(0,0,0,0.6); }
-        #status { margin: 20px; font-size: 24px; font-weight: bold; min-height: 35px; }
+        #status { margin: 20px; font-size: 24px; font-weight: bold; min-height: 35px; text-align: center; }
         button { padding: 10px 25px; cursor: pointer; background: #444; color: white; border: none; border-radius: 5px; font-weight: bold; }
         button:hover { background: #666; }
     </style>
 </head>
 <body>
 
-    <h1>Connect 4: Kamu vs Bot 🤖</h1>
-    <div id="status">Giliranmu: 🔴</div>
+    <h1>Connect 4: Rawak Start 🎲</h1>
+    <div id="status">Menentukan giliran...</div>
     <div id="board"></div>
     <br>
-    <button onclick="resetGame()">🔄 Ulang Permainan</button>
+    <button onclick="resetGame()">🔄 Game Baru (Rawak)</button>
 
 <script>
     const ROWS = 6;
     const COLS = 7;
     let grid = Array(ROWS).fill().map(() => Array(COLS).fill(null));
-    let currentPlayer = "red"; // Red = Kamu, Blue = Bot
+    let currentPlayer = ""; 
     let gameOver = false;
+    let isBotThinking = false;
 
     const boardEl = document.getElementById("board");
     const statusText = document.getElementById("status");
@@ -47,15 +48,32 @@
                 boardEl.appendChild(cell);
             }
         }
+        determineFirstPlayer();
+    }
+
+    // Fungsi untuk tentukan siapa mula dulu secara RAWAK
+    function determineFirstPlayer() {
+        const random = Math.random();
+        if (random < 0.5) {
+            currentPlayer = "red";
+            statusText.textContent = "Anda mula dulu! 🔴";
+        } else {
+            currentPlayer = "blue";
+            statusText.textContent = "Bot mula dulu! 🤖";
+            isBotThinking = true;
+            setTimeout(botMove, 1000); // Bot tunggu 1 saat sebelum jalan
+        }
     }
 
     function playerMove(col) {
-        if (gameOver || currentPlayer !== "red") return;
+        if (gameOver || currentPlayer !== "red" || isBotThinking) return;
+        
         if (makeMove(col, "red")) {
             if (!gameOver) {
                 currentPlayer = "blue";
-                statusText.textContent = "Bot sedang berpikir... 🤖";
-                setTimeout(botMove, 600); // Bot mikir 0.6 detik
+                isBotThinking = true;
+                statusText.textContent = "Bot sedang berfikir... 🤖";
+                setTimeout(botMove, 800);
             }
         }
     }
@@ -63,13 +81,15 @@
     function botMove() {
         if (gameOver) return;
         
-        // Strategi Bot: 1. Cari kemenangan, 2. Blokir lawan, 3. Random
+        // Strategi Bot (Cari menang, blokir, atau random)
         let move = findWinningMove("blue") || findWinningMove("red") || randomMove();
         
         makeMove(move, "blue");
+        isBotThinking = false;
+
         if (!gameOver) {
             currentPlayer = "red";
-            statusText.textContent = "Giliranmu: 🔴";
+            statusText.textContent = "Giliran anda: 🔴";
         }
     }
 
@@ -79,7 +99,7 @@
                 grid[r][col] = color;
                 updateUI();
                 if (checkWin(r, col, color)) {
-                    statusText.textContent = color === "red" ? "Kamu Menang! 🎉" : "Bot Menang! 🤖";
+                    statusText.textContent = color === "red" ? "Anda Menang! 🎉" : "Bot Menang! 🤖";
                     gameOver = true;
                 }
                 return true;
@@ -94,7 +114,7 @@
                 if (grid[r][c] === null) {
                     grid[r][c] = color;
                     let win = checkWin(r, c, color);
-                    grid[r][c] = null; // Reset lagi
+                    grid[r][c] = null;
                     if (win) return c;
                     break;
                 }
@@ -121,10 +141,10 @@
 
     function checkWin(r, c, color) {
         return (
-            checkDir(r, c, 0, 1, color) + checkDir(r, c, 0, -1, color) >= 3 || // Horiz
-            checkDir(r, c, 1, 0, color) + checkDir(r, c, -1, 0, color) >= 3 || // Vert
-            checkDir(r, c, 1, 1, color) + checkDir(r, c, -1, -1, color) >= 3 || // Diag \
-            checkDir(r, c, 1, -1, color) + checkDir(r, c, -1, 1, color) >= 3    // Diag /
+            checkDir(r, c, 0, 1, color) + checkDir(r, c, 0, -1, color) >= 3 || 
+            checkDir(r, c, 1, 0, color) + checkDir(r, c, -1, 0, color) >= 3 || 
+            checkDir(r, c, 1, 1, color) + checkDir(r, c, -1, -1, color) >= 3 || 
+            checkDir(r, c, 1, -1, color) + checkDir(r, c, -1, 1, color) >= 3    
         );
     }
 
@@ -142,10 +162,10 @@
 
     window.resetGame = function() {
         grid = Array(ROWS).fill().map(() => Array(COLS).fill(null));
-        currentPlayer = "red";
         gameOver = false;
-        statusText.textContent = "Giliranmu: 🔴";
+        isBotThinking = false;
         updateUI();
+        determineFirstPlayer();
     };
 
     initBoard();
