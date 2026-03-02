@@ -89,6 +89,8 @@ const firebaseConfig = {
   measurementId: "G-JFPMTX9E93"
 };
 
+// ... (Firebase config tetap sama)
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const gameRef = ref(db, "games/room1");
@@ -100,96 +102,96 @@ let currentPlayer = "red";
 let gameOver = false;
 let grid = Array(6).fill().map(() => Array(7).fill(null));
 
-// Buat grid
-for (let row = 0; row < 6; row++) {
-  for (let col = 0; col < 7; col++) {
-    const cell = document.createElement("div");
-    cell.classList.add("cell");
-    cell.dataset.row = row;
-    cell.dataset.col = col;
-    cell.addEventListener("click", () => dropPiece(col));
-    board.appendChild(cell);
+// Buat grid secara visual
+function createBoard() {
+  board.innerHTML = ""; // Bersihkan board dulu
+  for (let row = 0; row < 6; row++) {
+    for (let col = 0; col < 7; col++) {
+      const cell = document.createElement("div");
+      cell.classList.add("cell");
+      cell.dataset.row = row;
+      cell.dataset.col = col;
+      // Gunakan event listener di sini
+      cell.addEventListener("click", () => dropPiece(col));
+      board.appendChild(cell);
+    }
   }
 }
+
+createBoard();
 
 function dropPiece(col) {
   if (gameOver) return;
 
+  // Cari baris kosong dari bawah
+  let placed = false;
   for (let row = 5; row >= 0; row--) {
     if (!grid[row][col]) {
       grid[row][col] = currentPlayer;
-
-      // 🔥 TAMBAH INI
-      currentPlayer = currentPlayer === "red" ? "blue" : "red";
-
-      set(gameRef, {
-        grid: grid,
-        currentPlayer: currentPlayer,
-        gameOver: gameOver
-      });
-
+      placed = true;
       break;
     }
+  }
+
+  if (placed) {
+    // Ganti giliran
+    const nextPlayer = currentPlayer === "red" ? "blue" : "red";
+    
+    // Kirim ke Firebase
+    set(gameRef, {
+      grid: grid,
+      currentPlayer: nextPlayer,
+      gameOver: gameOver
+    });
   }
 }
 
 onValue(gameRef, (snapshot) => {
   const data = snapshot.val();
+  
+  // Jika data belum ada di Firebase (game baru), inisialisasi
+  if (!data) {
+    restartGame(); 
+    return;
+  }
 
-  if (!data || !Array.isArray(data.grid)) return;
-
-  // pastikan grid selalu 6x7
-  if (data.grid.length !== 6) return;
-
-  grid = data.grid.map(row =>
-    Array.isArray(row) ? row : Array(7).fill(null)
-  );
-
-  currentPlayer = data.currentPlayer || "red";
-  gameOver = data.gameOver || false;
+  grid = data.grid;
+  currentPlayer = data.currentPlayer;
+  gameOver = data.gameOver;
 
   updateUI();
-
-  statusText.textContent =
-    "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
 });
+
 function updateUI() {
   const cells = document.querySelectorAll(".cell");
-
   cells.forEach(cell => {
-    const row = parseInt(cell.dataset.row);
-    const col = parseInt(cell.dataset.col);
+    const row = cell.dataset.row;
+    const col = cell.dataset.col;
+    const color = grid[row][col];
 
     cell.classList.remove("red", "blue");
-
-    // 🔥 TAMBAHAN PENGAMAN
-    if (
-      grid &&
-      Array.isArray(grid) &&
-      grid[row] &&
-      Array.isArray(grid[row]) &&
-      grid[row][col]
-    ) {
-      cell.classList.add(grid[row][col]);
+    if (color) {
+      cell.classList.add(color);
     }
   });
+
+  statusText.textContent = "Giliran: " + (currentPlayer === "red" ? "🔴 Merah" : "🔵 Biru");
 }
 
+// Ekspos fungsi restart ke global window agar onclick di HTML bisa jalan
 window.restartGame = function() {
-  grid = Array(6).fill().map(() => Array(7).fill(null));
-  currentPlayer = "red";
-  gameOver = false;
-
+  const emptyGrid = Array(6).fill().map(() => Array(7).fill(null));
   set(gameRef, {
-    grid: grid,
-    currentPlayer: currentPlayer,
-    gameOver: gameOver
+    grid: emptyGrid,
+    currentPlayer: "red",
+    gameOver: false
   });
 };
 </script>
 </body>
 
 </html>
+
 
 
 
