@@ -179,7 +179,8 @@
       position: relative;
     }
 
-    .cell:hover { background: #1a1a1a; }
+    .cell:hover:not(.red):not(.blue) { background: #2a2a2a; }
+    @media (hover: none) { .cell:hover { background: #111; } }
     .cell.no-hover { cursor: default; }
     .cell.no-hover:hover { background: #111; }
 
