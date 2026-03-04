@@ -322,13 +322,21 @@ function buildBoard() {
       const cell = document.createElement('div');
       cell.className = 'cell no-hover';
       cell.id = `cell-${r}-${c}`;
-      // Touch: pakai touchend + preventDefault biar tidak delay di HP
+
+      let touchFired = false;
+
       cell.addEventListener('touchend', (e) => {
         e.preventDefault();
+        touchFired = true;
         handleClick(c);
+        setTimeout(() => { touchFired = false; }, 500);
       }, { passive: false });
-      // Mouse: tetap pakai click untuk desktop
-      cell.addEventListener('click', () => handleClick(c));
+
+      cell.addEventListener('click', () => {
+        if (touchFired) return;
+        handleClick(c);
+      });
+
       boardEl.appendChild(cell);
     }
   }
