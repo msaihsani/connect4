@@ -261,8 +261,6 @@
     <button class="game-btn" id="btn-rematch" style="display:none">🔄 Main Lagi</button>
     <button class="game-btn" id="btn-leave">🚪 Keluar</button>
   </div>
-  <div id="debug-log" style="font-size:0.7rem;color:#666;margin-top:8px;min-height:16px;letter-spacing:1px;"></div>
-  <div id="debug-color" style="font-size:0.7rem;color:#555;letter-spacing:1px;"></div>
 </div>
 
 <script type="module">
@@ -301,14 +299,7 @@ const statusEl  = document.getElementById('status');
 const boardEl   = document.getElementById('board');
 const lobbyStatus = document.getElementById('lobby-status');
 
-// On-screen debug log untuk HP
-const debugEl = document.getElementById('debug-log');
-function dlog(msg) {
-  console.log(msg);
-  if (debugEl) {
-    debugEl.textContent = msg;
-  }
-}
+function dlog(msg) { /* debug off */ }
 
 // ── Helpers ──
 function randomCode() {
@@ -484,9 +475,7 @@ function listenRoom() {
 
 // ── Update game state from Firebase ──
 function updateGame(data) {
-  const rawGrid  = data.grid;
-  dlog(`grid type:${Array.isArray(rawGrid)?'array':'object'} r0:${JSON.stringify(rawGrid?.[0]).substring(0,30)}`);
-  const grid     = parseGrid(rawGrid);
+  const grid     = parseGrid(data.grid);
   const winCells = data.winCells ? Object.values(data.winCells) : [];
   renderGrid(grid, winCells);
 
