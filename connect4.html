@@ -1,175 +1,571 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <title>Connect 4</title>
-    <style>
-        body { background: #111; color: white; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; padding: 20px; }
-        #board { 
-            display: grid; grid-template-columns: repeat(7, 50px); grid-template-rows: repeat(6, 50px); 
-            gap: 8px; background: #0055ff; padding: 15px; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-        }
-        @media (min-width: 600px) { #board { grid-template-columns: repeat(7, 80px); grid-template-rows: repeat(6, 80px); } }
-        .cell { width: 100%; height: 100%; background: #222; border-radius: 50%; cursor: pointer; border: none; transition: 0.2s; }
-        .cell.red { background: #ff4136; box-shadow: inset 0 0 15px rgba(0,0,0,0.6); }
-        .cell.blue { background: #0074d9; box-shadow: inset 0 0 15px rgba(0,0,0,0.6); }
-        #status { margin: 20px; font-size: 24px; font-weight: bold; min-height: 35px; text-align: center; }
-        button { padding: 10px 25px; cursor: pointer; background: #444; color: white; border: none; border-radius: 5px; font-weight: bold; }
-        button:hover { background: #666; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connect 4 Online</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #111;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: sans-serif;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h1 { margin-bottom: 16px; font-size: 1.8rem; }
+
+    /* ── Lobby ── */
+    #lobby {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    #lobby h2 { font-size: 1.1rem; color: #aaa; margin-bottom: 4px; }
+
+    .lobby-btn {
+      width: 100%;
+      padding: 12px;
+      font-size: 1rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    #btn-create { background: #ff4136; color: white; }
+    #btn-create:hover { background: #cc3329; }
+
+    .divider-text {
+      color: #555;
+      font-size: 0.85rem;
+      letter-spacing: 2px;
+    }
+
+    .join-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .join-row input {
+      flex: 1;
+      padding: 10px;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 8px;
+      color: white;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      text-align: center;
+    }
+
+    .join-row input::placeholder { color: #555; letter-spacing: 1px; text-transform: none; }
+
+    #btn-join {
+      padding: 10px 16px;
+      background: #0074d9;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+
+    #btn-join:hover { background: #005faf; }
+
+    #lobby-status {
+      font-size: 0.85rem;
+      color: #ff4136;
+      min-height: 20px;
+      text-align: center;
+    }
+
+    /* ── Waiting ── */
+    #waiting {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      text-align: center;
+    }
+
+    .room-code-box {
+      background: #222;
+      border: 2px dashed #444;
+      border-radius: 12px;
+      padding: 20px 36px;
+    }
+
+    .room-code-label { font-size: 0.75rem; color: #666; letter-spacing: 2px; margin-bottom: 6px; }
+
+    .room-code {
+      font-size: 2.5rem;
+      font-weight: bold;
+      letter-spacing: 8px;
+      color: #0074d9;
+    }
+
+    .waiting-text { color: #888; font-size: 0.9rem; animation: blink 1.2s infinite; }
+
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* ── Game ── */
+    #game { display: none; flex-direction: column; align-items: center; gap: 12px; }
+
+    #player-info {
+      display: flex;
+      gap: 24px;
+      font-size: 0.9rem;
+    }
+
+    .player-tag {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: bold;
+      opacity: 0.4;
+      transition: 0.3s;
+    }
+
+    .player-tag.active { opacity: 1; transform: scale(1.05); }
+    .player-tag.red-tag  { background: rgba(255,65,54,0.2);  border: 2px solid #ff4136; color: #ff4136; }
+    .player-tag.blue-tag { background: rgba(0,116,217,0.2); border: 2px solid #0074d9; color: #0074d9; }
+
+    #status {
+      font-size: 1rem;
+      font-weight: bold;
+      min-height: 28px;
+      text-align: center;
+      color: #ccc;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(7, 48px);
+      grid-template-rows: repeat(6, 48px);
+      gap: 7px;
+      background: #0055ff;
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,255,0.3);
+    }
+
+    @media (min-width: 500px) {
+      #board {
+        grid-template-columns: repeat(7, 64px);
+        grid-template-rows: repeat(6, 64px);
+      }
+    }
+
+    .cell {
+      width: 100%; height: 100%;
+      background: #111;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      transition: background 0.2s;
+      position: relative;
+    }
+
+    .cell:hover { background: #1a1a1a; }
+    .cell.no-hover { cursor: default; }
+    .cell.no-hover:hover { background: #111; }
+
+    .cell.red  { background: #ff4136; box-shadow: inset 0 0 12px rgba(0,0,0,0.5), 0 0 8px rgba(255,65,54,0.4); }
+    .cell.blue { background: #0074d9; box-shadow: inset 0 0 12px rgba(0,0,0,0.5), 0 0 8px rgba(0,116,217,0.4); }
+    .cell.win  { animation: winPulse 0.6s ease infinite alternate; }
+
+    @keyframes winPulse {
+      from { filter: brightness(1); }
+      to   { filter: brightness(1.6); }
+    }
+
+    @keyframes dropIn {
+      0%   { transform: translateY(-300px); opacity: 0; }
+      70%  { transform: translateY(6px); }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+
+    .cell.drop { animation: dropIn 0.3s ease forwards; }
+
+    #game-btns { display: flex; gap: 10px; }
+
+    .game-btn {
+      padding: 8px 20px;
+      cursor: pointer;
+      background: #333;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+
+    .game-btn:hover { background: #555; }
+  </style>
 </head>
 <body>
 
-    <h1>Connect 4</h1>
-    <div id="status">Menentukan giliran...</div>
-    <div id="board"></div>
-    <br>
-    <button onclick="resetGame()">🔄 Game Baru (Rawak)</button>
+<h1>🔴 Connect 4 Online 🔵</h1>
 
-<script>
-    const ROWS = 6;
-    const COLS = 7;
-    let grid = Array(ROWS).fill().map(() => Array(COLS).fill(null));
-    let currentPlayer = ""; 
-    let gameOver = false;
-    let isBotThinking = false;
+<!-- Lobby -->
+<div id="lobby">
+  <h2>Pilih mode</h2>
+  <button class="lobby-btn" id="btn-create">🎮 Buat Room Baru</button>
+  <div class="divider-text">— atau —</div>
+  <div class="join-row">
+    <input type="text" id="input-code" placeholder="Kode room" maxlength="4">
+    <button id="btn-join">Masuk</button>
+  </div>
+  <div id="lobby-status"></div>
+</div>
 
-    const boardEl = document.getElementById("board");
-    const statusText = document.getElementById("status");
+<!-- Waiting for opponent -->
+<div id="waiting">
+  <div class="room-code-box">
+    <div class="room-code-label">KODE ROOM</div>
+    <div class="room-code" id="display-code">----</div>
+  </div>
+  <div class="waiting-text">Menunggu lawan masuk...</div>
+  <button class="game-btn" id="btn-cancel">Batalkan</button>
+</div>
 
-    function initBoard() {
-        boardEl.innerHTML = "";
-        for (let r = 0; r < ROWS; r++) {
-            for (let c = 0; c < COLS; c++) {
-                const cell = document.createElement("div");
-                cell.className = "cell";
-                cell.id = `cell-${r}-${c}`;
-                cell.onclick = () => playerMove(c);
-                boardEl.appendChild(cell);
-            }
-        }
-        determineFirstPlayer();
+<!-- Game -->
+<div id="game">
+  <div id="player-info">
+    <div class="player-tag red-tag"  id="tag-red">🔴 Kamu</div>
+    <div class="player-tag blue-tag" id="tag-blue">🔵 Lawan</div>
+  </div>
+  <div id="status">Memuat...</div>
+  <div id="board"></div>
+  <div id="game-btns">
+    <button class="game-btn" id="btn-rematch" style="display:none">🔄 Main Lagi</button>
+    <button class="game-btn" id="btn-leave">🚪 Keluar</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, update, remove, off }
+  from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyCs0ILbR4-4Ehpj5Fc0qe51T3lXT88RS1Q",
+  authDomain:        "connect4-45933.firebaseapp.com",
+  databaseURL:       "https://connect4-45933-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "connect4-45933",
+  storageBucket:     "connect4-45933.firebasestorage.app",
+  messagingSenderId: "451198042538",
+  appId:             "1:451198042538:web:8d27e59009f1ee9b8aabd3",
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// ── Constants ──
+const ROWS = 6, COLS = 7;
+
+// ── State ──
+let myColor    = null;   // 'red' | 'blue'
+let roomCode   = null;
+let roomRef    = null;
+let gameOver   = false;
+let unsubscribe = null;
+
+// ── UI refs ──
+const lobbyEl   = document.getElementById('lobby');
+const waitingEl = document.getElementById('waiting');
+const gameEl    = document.getElementById('game');
+const statusEl  = document.getElementById('status');
+const boardEl   = document.getElementById('board');
+const lobbyStatus = document.getElementById('lobby-status');
+
+// ── Helpers ──
+function randomCode() {
+  return Math.random().toString(36).substring(2, 6).toUpperCase();
+}
+
+function showScreen(name) {
+  lobbyEl.style.display   = name === 'lobby'   ? 'flex' : 'none';
+  waitingEl.style.display = name === 'waiting' ? 'flex' : 'none';
+  gameEl.style.display    = name === 'game'    ? 'flex' : 'none';
+}
+
+function emptyGrid() {
+  return Array(ROWS).fill(null).map(() => Array(COLS).fill(null));
+}
+
+// ── Build board UI ──
+function buildBoard() {
+  boardEl.innerHTML = '';
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell no-hover';
+      cell.id = `cell-${r}-${c}`;
+      cell.addEventListener('click', () => handleClick(c));
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+function renderGrid(grid, winCells = []) {
+  const winSet = new Set(winCells.map(([r,c]) => `${r}-${c}`));
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.getElementById(`cell-${r}-${c}`);
+      if (!cell) continue;
+      cell.className = 'cell';
+      const val = grid[r]?.[c];
+      if (val) {
+        cell.classList.add(val);
+        if (winSet.has(`${r}-${c}`)) cell.classList.add('win');
+      }
+    }
+  }
+}
+
+function setClickable(yes) {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.getElementById(`cell-${r}-${c}`);
+      if (!cell) continue;
+      if (yes) cell.classList.remove('no-hover');
+      else cell.classList.add('no-hover');
+    }
+}
+
+// ── Create room ──
+async function createRoom() {
+  const code = randomCode();
+  roomCode  = code;
+  myColor   = 'red';
+  roomRef   = ref(db, `rooms/${code}`);
+
+  await set(roomRef, {
+    grid:    emptyGrid(),
+    turn:    'red',
+    red:     true,
+    blue:    false,
+    status:  'waiting',
+    winner:  null,
+    winCells: null,
+  });
+
+  document.getElementById('display-code').textContent = code;
+  showScreen('waiting');
+  listenRoom();
+}
+
+// ── Join room ──
+async function joinRoom(code) {
+  code = code.toUpperCase().trim();
+  if (code.length !== 4) { lobbyStatus.textContent = 'Kode harus 4 karakter.'; return; }
+
+  const snap = await get(ref(db, `rooms/${code}`));
+  if (!snap.exists()) { lobbyStatus.textContent = 'Room tidak ditemukan.'; return; }
+
+  const data = snap.val();
+  if (data.blue)   { lobbyStatus.textContent = 'Room sudah penuh.'; return; }
+  if (data.status !== 'waiting') { lobbyStatus.textContent = 'Game sudah dimulai.'; return; }
+
+  roomCode = code;
+  myColor  = 'blue';
+  roomRef  = ref(db, `rooms/${code}`);
+
+  await update(roomRef, { blue: true, status: 'playing' });
+  showScreen('game');
+  buildBoard();
+  listenRoom();
+}
+
+// ── Listen to room changes ──
+function listenRoom() {
+  if (unsubscribe) off(roomRef);
+  unsubscribe = onValue(roomRef, snap => {
+    if (!snap.exists()) {
+      // Room dihapus (lawan keluar)
+      if (gameEl.style.display !== 'none') {
+        statusEl.textContent = '😔 Lawan meninggalkan game.';
+        setClickable(false);
+        document.getElementById('btn-rematch').style.display = 'none';
+      }
+      return;
     }
 
-    // Fungsi untuk tentukan siapa mula dulu secara RAWAK
-    function determineFirstPlayer() {
-        const random = Math.random();
-        if (random < 0.5) {
-            currentPlayer = "red";
-            statusText.textContent = "Anda mula dulu! 🔴";
-        } else {
-            currentPlayer = "blue";
-            statusText.textContent = "Bot mula dulu! 🤖";
-            isBotThinking = true;
-            setTimeout(botMove, 1000); // Bot tunggu 1 saat sebelum jalan
-        }
+    const data = snap.val();
+
+    // Waiting: cek kalau lawan sudah join
+    if (data.status === 'playing' && waitingEl.style.display !== 'none') {
+      showScreen('game');
+      buildBoard();
     }
 
-    function playerMove(col) {
-        if (gameOver || currentPlayer !== "red" || isBotThinking) return;
-        
-        if (makeMove(col, "red")) {
-            if (!gameOver) {
-                currentPlayer = "blue";
-                isBotThinking = true;
-                statusText.textContent = "Bot sedang berfikir... 🤖";
-                setTimeout(botMove, 800);
-            }
-        }
+    if (data.status === 'playing' || data.status === 'done') {
+      updateGame(data);
     }
+  });
+}
 
-    function botMove() {
-        if (gameOver) return;
-        
-        // Strategi Bot (Cari menang, blokir, atau random)
-        let move = findWinningMove("blue") || findWinningMove("red") || randomMove();
-        
-        makeMove(move, "blue");
-        isBotThinking = false;
+// ── Update game state from Firebase ──
+function updateGame(data) {
+  const grid     = data.grid     || emptyGrid();
+  const winCells = data.winCells ? Object.values(data.winCells) : [];
+  renderGrid(grid, winCells);
 
-        if (!gameOver) {
-            currentPlayer = "red";
-            statusText.textContent = "Giliran anda: 🔴";
-        }
+  // Update player tags
+  const isMyTurn = data.turn === myColor && data.status === 'playing';
+  document.getElementById('tag-red').classList.toggle('active',  data.turn === 'red');
+  document.getElementById('tag-blue').classList.toggle('active', data.turn === 'blue');
+
+  // Label nama
+  const redLabel  = myColor === 'red'  ? '🔴 Kamu' : '🔴 Lawan';
+  const blueLabel = myColor === 'blue' ? '🔵 Kamu' : '🔵 Lawan';
+  document.getElementById('tag-red').textContent  = redLabel;
+  document.getElementById('tag-blue').textContent = blueLabel;
+
+  if (data.status === 'done') {
+    gameOver = true;
+    setClickable(false);
+    document.getElementById('btn-rematch').style.display = 'inline-block';
+    if (data.winner === 'draw') {
+      statusEl.textContent = '🤝 Seri!';
+    } else if (data.winner === myColor) {
+      statusEl.textContent = '🎉 Kamu Menang!';
+    } else {
+      statusEl.textContent = '😔 Kamu Kalah.';
     }
-
-    function makeMove(col, color) {
-        for (let r = ROWS - 1; r >= 0; r--) {
-            if (grid[r][col] === null) {
-                grid[r][col] = color;
-                updateUI();
-                if (checkWin(r, col, color)) {
-                    statusText.textContent = color === "red" ? "Anda Menang! 🎉" : "Bot Menang! 🤖";
-                    gameOver = true;
-                }
-                return true;
-            }
-        }
-        return false;
+  } else {
+    gameOver = false;
+    document.getElementById('btn-rematch').style.display = 'none';
+    if (isMyTurn) {
+      statusEl.textContent = 'Giliran kamu!';
+      setClickable(true);
+    } else {
+      statusEl.textContent = 'Menunggu giliran lawan...';
+      setClickable(false);
     }
+  }
+}
 
-    function findWinningMove(color) {
-        for (let c = 0; c < COLS; c++) {
-            for (let r = ROWS - 1; r >= 0; r--) {
-                if (grid[r][c] === null) {
-                    grid[r][c] = color;
-                    let win = checkWin(r, c, color);
-                    grid[r][c] = null;
-                    if (win) return c;
-                    break;
-                }
-            }
-        }
-        return null;
+// ── Handle column click ──
+async function handleClick(col) {
+  if (gameOver) return;
+
+  const snap = await get(roomRef);
+  if (!snap.exists()) return;
+  const data = snap.val();
+  if (data.turn !== myColor || data.status !== 'playing') return;
+
+  const grid = data.grid || emptyGrid();
+  let row = -1;
+  for (let r = ROWS - 1; r >= 0; r--) {
+    if (!grid[r][col]) { row = r; break; }
+  }
+  if (row === -1) return; // kolom penuh
+
+  grid[row][col] = myColor;
+
+  // Cek menang
+  const winCells = checkWin(grid, row, col, myColor);
+  if (winCells) {
+    await update(roomRef, {
+      grid,
+      turn:     myColor,
+      status:   'done',
+      winner:   myColor,
+      winCells: winCells,
+    });
+    return;
+  }
+
+  // Cek seri
+  const isDraw = grid[0].every(cell => cell !== null);
+  if (isDraw) {
+    await update(roomRef, { grid, status: 'done', winner: 'draw', winCells: null });
+    return;
+  }
+
+  const nextTurn = myColor === 'red' ? 'blue' : 'red';
+  await update(roomRef, { grid, turn: nextTurn });
+}
+
+// ── Win check ──
+function checkWin(grid, r, c, color) {
+  const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+  for (const [dr, dc] of dirs) {
+    const cells = [[r, c]];
+    for (let d of [1, -1]) {
+      let nr = r + dr*d, nc = c + dc*d;
+      while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && grid[nr][nc] === color) {
+        cells.push([nr, nc]);
+        nr += dr*d; nc += dc*d;
+      }
     }
+    if (cells.length >= 4) return cells;
+  }
+  return null;
+}
 
-    function randomMove() {
-        let validCols = [];
-        for (let c = 0; c < COLS; c++) if (grid[0][c] === null) validCols.push(c);
-        return validCols[Math.floor(Math.random() * validCols.length)];
-    }
+// ── Leave room ──
+async function leaveRoom() {
+  if (unsubscribe) { off(roomRef); unsubscribe = null; }
+  if (roomRef && myColor === 'red') {
+    // Creator hapus room kalau keluar
+    await remove(roomRef);
+  } else if (roomRef) {
+    await update(roomRef, { blue: false, status: 'done', winner: 'left' });
+  }
+  roomRef = roomCode = myColor = null;
+  gameOver = false;
+  lobbyStatus.textContent = '';
+  document.getElementById('input-code').value = '';
+  showScreen('lobby');
+}
 
-    function updateUI() {
-        for (let r = 0; r < ROWS; r++) {
-            for (let c = 0; c < COLS; c++) {
-                const cell = document.getElementById(`cell-${r}-${c}`);
-                cell.className = "cell";
-                if (grid[r][c]) cell.classList.add(grid[r][c]);
-            }
-        }
-    }
+// ── Rematch ──
+async function rematch() {
+  if (!roomRef) return;
+  await update(roomRef, {
+    grid:     emptyGrid(),
+    turn:     'red',
+    status:   'playing',
+    winner:   null,
+    winCells: null,
+  });
+  document.getElementById('btn-rematch').style.display = 'none';
+}
 
-    function checkWin(r, c, color) {
-        return (
-            checkDir(r, c, 0, 1, color) + checkDir(r, c, 0, -1, color) >= 3 || 
-            checkDir(r, c, 1, 0, color) + checkDir(r, c, -1, 0, color) >= 3 || 
-            checkDir(r, c, 1, 1, color) + checkDir(r, c, -1, -1, color) >= 3 || 
-            checkDir(r, c, 1, -1, color) + checkDir(r, c, -1, 1, color) >= 3    
-        );
-    }
+// ── Event listeners ──
+document.getElementById('btn-create').addEventListener('click', createRoom);
+document.getElementById('btn-join').addEventListener('click', () => {
+  joinRoom(document.getElementById('input-code').value);
+});
+document.getElementById('input-code').addEventListener('keydown', e => {
+  if (e.key === 'Enter') joinRoom(document.getElementById('input-code').value);
+});
+document.getElementById('btn-cancel').addEventListener('click', async () => {
+  if (roomRef) await remove(roomRef);
+  if (unsubscribe) { off(roomRef); unsubscribe = null; }
+  roomRef = roomCode = myColor = null;
+  showScreen('lobby');
+});
+document.getElementById('btn-leave').addEventListener('click', leaveRoom);
+document.getElementById('btn-rematch').addEventListener('click', rematch);
 
-    function checkDir(row, col, rDir, cDir, color) {
-        let count = 0;
-        let r = row + rDir;
-        let c = col + cDir;
-        while (r >= 0 && r < ROWS && c >= 0 && c < COLS && grid[r][c] === color) {
-            count++;
-            r += rDir;
-            c += cDir;
-        }
-        return count;
-    }
-
-    window.resetGame = function() {
-        grid = Array(ROWS).fill().map(() => Array(COLS).fill(null));
-        gameOver = false;
-        isBotThinking = false;
-        updateUI();
-        determineFirstPlayer();
-    };
-
-    initBoard();
+showScreen('lobby');
 </script>
 </body>
 </html>
-
