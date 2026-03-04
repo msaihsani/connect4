@@ -347,6 +347,17 @@ function setClickable(yes) {
     }
 }
 
+// ── Grid helpers ──
+// Firebase mengubah array jadi object {0:{0:null,...},...}, perlu dikonversi balik
+function parseGrid(raw) {
+  if (Array.isArray(raw)) return raw;
+  const grid = emptyGrid();
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      grid[r][c] = raw?.[r]?.[c] ?? null;
+  return grid;
+}
+
 // ── Create room ──
 async function createRoom() {
   const code = randomCode();
@@ -355,12 +366,12 @@ async function createRoom() {
   roomRef   = ref(db, `rooms/${code}`);
 
   await set(roomRef, {
-    grid:    emptyGrid(),
-    turn:    'red',
-    red:     true,
-    blue:    false,
-    status:  'waiting',
-    winner:  null,
+    grid:     emptyGrid(),
+    turn:     'red',
+    red:      true,
+    blue:     false,
+    status:   'waiting',
+    winner:   null,
     winCells: null,
   });
 
@@ -378,14 +389,16 @@ async function joinRoom(code) {
   if (!snap.exists()) { lobbyStatus.textContent = 'Room tidak ditemukan.'; return; }
 
   const data = snap.val();
-  if (data.blue)   { lobbyStatus.textContent = 'Room sudah penuh.'; return; }
+  if (data.blue)              { lobbyStatus.textContent = 'Room sudah penuh.'; return; }
   if (data.status !== 'waiting') { lobbyStatus.textContent = 'Game sudah dimulai.'; return; }
 
   roomCode = code;
   myColor  = 'blue';
   roomRef  = ref(db, `rooms/${code}`);
 
-  await update(roomRef, { blue: true, status: 'playing' });
+  // Random siapa yang jalan duluan
+  const firstTurn = Math.random() < 0.5 ? 'red' : 'blue';
+  await update(roomRef, { blue: true, status: 'playing', turn: firstTurn });
   showScreen('game');
   buildBoard();
   listenRoom();
@@ -393,19 +406,33 @@ async function joinRoom(code) {
 
 // ── Listen to room changes ──
 function listenRoom() {
-  if (unsubscribe) off(roomRef);
+  if (unsubscribe) { off(roomRef); unsubscribe = null; }
   unsubscribe = onValue(roomRef, snap => {
     if (!snap.exists()) {
-      // Room dihapus (lawan keluar)
+      // Room dihapus = lawan keluar
+      if (unsubscribe) { off(roomRef); unsubscribe = null; }
+      gameOver = true;
+      setClickable(false);
+      document.getElementById('btn-rematch').style.display = 'none';
       if (gameEl.style.display !== 'none') {
         statusEl.textContent = '😔 Lawan meninggalkan game.';
-        setClickable(false);
-        document.getElementById('btn-rematch').style.display = 'none';
+      } else {
+        // Masih di waiting screen
+        showScreen('lobby');
       }
       return;
     }
 
     const data = snap.val();
+
+    // Kalau lawan keluar di tengah game (set winner: 'left')
+    if (data.winner === 'left') {
+      gameOver = true;
+      setClickable(false);
+      document.getElementById('btn-rematch').style.display = 'none';
+      statusEl.textContent = '😔 Lawan meninggalkan game.';
+      return;
+    }
 
     // Waiting: cek kalau lawan sudah join
     if (data.status === 'playing' && waitingEl.style.display !== 'none') {
@@ -421,16 +448,14 @@ function listenRoom() {
 
 // ── Update game state from Firebase ──
 function updateGame(data) {
-  const grid     = data.grid     || emptyGrid();
+  const grid     = parseGrid(data.grid);
   const winCells = data.winCells ? Object.values(data.winCells) : [];
   renderGrid(grid, winCells);
 
-  // Update player tags
   const isMyTurn = data.turn === myColor && data.status === 'playing';
   document.getElementById('tag-red').classList.toggle('active',  data.turn === 'red');
   document.getElementById('tag-blue').classList.toggle('active', data.turn === 'blue');
 
-  // Label nama
   const redLabel  = myColor === 'red'  ? '🔴 Kamu' : '🔴 Lawan';
   const blueLabel = myColor === 'blue' ? '🔵 Kamu' : '🔵 Lawan';
   document.getElementById('tag-red').textContent  = redLabel;
@@ -469,29 +494,21 @@ async function handleClick(col) {
   const data = snap.val();
   if (data.turn !== myColor || data.status !== 'playing') return;
 
-  const grid = data.grid || emptyGrid();
+  const grid = parseGrid(data.grid);
   let row = -1;
   for (let r = ROWS - 1; r >= 0; r--) {
     if (!grid[r][col]) { row = r; break; }
   }
-  if (row === -1) return; // kolom penuh
+  if (row === -1) return;
 
   grid[row][col] = myColor;
 
-  // Cek menang
   const winCells = checkWin(grid, row, col, myColor);
   if (winCells) {
-    await update(roomRef, {
-      grid,
-      turn:     myColor,
-      status:   'done',
-      winner:   myColor,
-      winCells: winCells,
-    });
+    await update(roomRef, { grid, turn: myColor, status: 'done', winner: myColor, winCells });
     return;
   }
 
-  // Cek seri
   const isDraw = grid[0].every(cell => cell !== null);
   if (isDraw) {
     await update(roomRef, { grid, status: 'done', winner: 'draw', winCells: null });
@@ -522,25 +539,25 @@ function checkWin(grid, r, c, color) {
 // ── Leave room ──
 async function leaveRoom() {
   if (unsubscribe) { off(roomRef); unsubscribe = null; }
-  if (roomRef && myColor === 'red') {
-    // Creator hapus room kalau keluar
-    await remove(roomRef);
-  } else if (roomRef) {
-    await update(roomRef, { blue: false, status: 'done', winner: 'left' });
+  if (roomRef) {
+    await update(roomRef, { status: 'done', winner: 'left' });
+    if (myColor === 'red') await remove(roomRef);
   }
   roomRef = roomCode = myColor = null;
   gameOver = false;
   lobbyStatus.textContent = '';
   document.getElementById('input-code').value = '';
+  document.getElementById('btn-rematch').style.display = 'none';
   showScreen('lobby');
 }
 
 // ── Rematch ──
 async function rematch() {
   if (!roomRef) return;
+  const firstTurn = Math.random() < 0.5 ? 'red' : 'blue';
   await update(roomRef, {
     grid:     emptyGrid(),
-    turn:     'red',
+    turn:     firstTurn,
     status:   'playing',
     winner:   null,
     winCells: null,
@@ -557,8 +574,8 @@ document.getElementById('input-code').addEventListener('keydown', e => {
   if (e.key === 'Enter') joinRoom(document.getElementById('input-code').value);
 });
 document.getElementById('btn-cancel').addEventListener('click', async () => {
-  if (roomRef) await remove(roomRef);
   if (unsubscribe) { off(roomRef); unsubscribe = null; }
+  if (roomRef) await remove(roomRef);
   roomRef = roomCode = myColor = null;
   showScreen('lobby');
 });
@@ -566,6 +583,3 @@ document.getElementById('btn-leave').addEventListener('click', leaveRoom);
 document.getElementById('btn-rematch').addEventListener('click', rematch);
 
 showScreen('lobby');
-</script>
-</body>
-</html>
