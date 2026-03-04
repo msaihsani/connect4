@@ -180,7 +180,13 @@
     }
 
     .cell:hover:not(.red):not(.blue) { background: #2a2a2a; }
-    @media (hover: none) { .cell:hover { background: #111; } }
+    .cell.red:hover  { background: #ff4136; }
+    .cell.blue:hover { background: #0074d9; }
+    @media (hover: none) {
+      .cell:hover { background: #111 !important; }
+      .cell.red:hover  { background: #ff4136 !important; }
+      .cell.blue:hover { background: #0074d9 !important; }
+    }
     .cell.no-hover { cursor: default; }
     .cell.no-hover:hover { background: #111; }
 
@@ -316,6 +322,12 @@ function buildBoard() {
       const cell = document.createElement('div');
       cell.className = 'cell no-hover';
       cell.id = `cell-${r}-${c}`;
+      // Touch: pakai touchend + preventDefault biar tidak delay di HP
+      cell.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        handleClick(c);
+      }, { passive: false });
+      // Mouse: tetap pakai click untuk desktop
       cell.addEventListener('click', () => handleClick(c));
       boardEl.appendChild(cell);
     }
