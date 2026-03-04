@@ -376,13 +376,17 @@ function setClickable(yes) {
 }
 
 // ── Grid helpers ──
-// Firebase mengubah array jadi object {0:{0:null,...},...}, perlu dikonversi balik
 function parseGrid(raw) {
-  if (Array.isArray(raw)) return raw;
   const grid = emptyGrid();
-  for (let r = 0; r < ROWS; r++)
-    for (let c = 0; c < COLS; c++)
-      grid[r][c] = raw?.[r]?.[c] ?? null;
+  if (!raw) return grid;
+  for (let r = 0; r < ROWS; r++) {
+    const row = raw[r];
+    if (!row) continue;
+    for (let c = 0; c < COLS; c++) {
+      const val = row[c];
+      grid[r][c] = (val === 'red' || val === 'blue') ? val : null;
+    }
+  }
   return grid;
 }
 
@@ -480,7 +484,9 @@ function listenRoom() {
 
 // ── Update game state from Firebase ──
 function updateGame(data) {
-  const grid     = parseGrid(data.grid);
+  const rawGrid  = data.grid;
+  dlog(`grid type:${Array.isArray(rawGrid)?'array':'object'} r0:${JSON.stringify(rawGrid?.[0]).substring(0,30)}`);
+  const grid     = parseGrid(rawGrid);
   const winCells = data.winCells ? Object.values(data.winCells) : [];
   renderGrid(grid, winCells);
 
