@@ -261,6 +261,7 @@
     <button class="game-btn" id="btn-rematch" style="display:none">🔄 Main Lagi</button>
     <button class="game-btn" id="btn-leave">🚪 Keluar</button>
   </div>
+  <div id="debug-log" style="font-size:0.7rem;color:#666;margin-top:8px;min-height:16px;letter-spacing:1px;"></div>
 </div>
 
 <script type="module">
@@ -298,6 +299,15 @@ const gameEl    = document.getElementById('game');
 const statusEl  = document.getElementById('status');
 const boardEl   = document.getElementById('board');
 const lobbyStatus = document.getElementById('lobby-status');
+
+// On-screen debug log untuk HP
+const debugEl = document.getElementById('debug-log');
+function dlog(msg) {
+  console.log(msg);
+  if (debugEl) {
+    debugEl.textContent = msg;
+  }
+}
 
 // ── Helpers ──
 function randomCode() {
@@ -354,7 +364,7 @@ function renderGrid(grid, winCells = []) {
 }
 
 function setClickable(yes) {
-  console.log('setClickable:', yes);
+  dlog(`setClickable:${yes}`);
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++) {
       const cell = document.getElementById(`cell-${r}-${c}`);
@@ -504,23 +514,23 @@ function updateGame(data) {
 
 // ── Handle column click ──
 async function handleClick(col) {
-  console.log('handleClick', col, 'gameOver:', gameOver, 'isProcessing:', isProcessing, 'myColor:', myColor);
+  dlog(`click col:${col} go:${gameOver} proc:${isProcessing}`);
   if (gameOver || isProcessing) return;
   isProcessing = true;
 
   try {
     const snap = await get(roomRef);
-    if (!snap.exists()) { console.log('snap not exists'); return; }
+    if (!snap.exists()) { dlog('no room'); return; }
     const data = snap.val();
-    console.log('data.turn:', data.turn, 'myColor:', myColor, 'status:', data.status);
-    if (data.turn !== myColor || data.status !== 'playing') { console.log('not my turn or not playing'); return; }
+    dlog(`turn:${data.turn} my:${myColor} status:${data.status}`);
+    if (data.turn !== myColor || data.status !== 'playing') { dlog('not my turn'); return; }
 
     const grid = parseGrid(data.grid);
     let row = -1;
     for (let r = ROWS - 1; r >= 0; r--) {
       if (!grid[r][col]) { row = r; break; }
     }
-    if (row === -1) { console.log('kolom penuh'); return; }
+    if (row === -1) { dlog('col full'); return; }
 
     grid[row][col] = myColor;
 
@@ -538,8 +548,9 @@ async function handleClick(col) {
 
     const nextTurn = myColor === 'red' ? 'blue' : 'red';
     await update(roomRef, { grid, turn: nextTurn });
+    dlog(`moved → next:${nextTurn}`);
   } finally {
-    console.log('isProcessing reset');
+    dlog('proc reset');
     isProcessing = false;
   }
 }
