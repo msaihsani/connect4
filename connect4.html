@@ -315,6 +315,8 @@ function emptyGrid() {
 }
 
 // ── Build board UI ──
+let isProcessing = false;
+
 function buildBoard() {
   boardEl.innerHTML = '';
   for (let r = 0; r < ROWS; r++) {
@@ -322,21 +324,14 @@ function buildBoard() {
       const cell = document.createElement('div');
       cell.className = 'cell no-hover';
       cell.id = `cell-${r}-${c}`;
-
-      let touchFired = false;
-
       cell.addEventListener('touchend', (e) => {
         e.preventDefault();
-        touchFired = true;
         handleClick(c);
-        setTimeout(() => { touchFired = false; }, 500);
       }, { passive: false });
-
-      cell.addEventListener('click', () => {
-        if (touchFired) return;
+      cell.addEventListener('click', (e) => {
+        if (e.sourceCapabilities?.firesTouchEvents) return;
         handleClick(c);
       });
-
       boardEl.appendChild(cell);
     }
   }
@@ -508,36 +503,41 @@ function updateGame(data) {
 
 // ── Handle column click ──
 async function handleClick(col) {
-  if (gameOver) return;
+  if (gameOver || isProcessing) return;
+  isProcessing = true;
 
-  const snap = await get(roomRef);
-  if (!snap.exists()) return;
-  const data = snap.val();
-  if (data.turn !== myColor || data.status !== 'playing') return;
+  try {
+    const snap = await get(roomRef);
+    if (!snap.exists()) return;
+    const data = snap.val();
+    if (data.turn !== myColor || data.status !== 'playing') return;
 
-  const grid = parseGrid(data.grid);
-  let row = -1;
-  for (let r = ROWS - 1; r >= 0; r--) {
-    if (!grid[r][col]) { row = r; break; }
+    const grid = parseGrid(data.grid);
+    let row = -1;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (!grid[r][col]) { row = r; break; }
+    }
+    if (row === -1) return;
+
+    grid[row][col] = myColor;
+
+    const winCells = checkWin(grid, row, col, myColor);
+    if (winCells) {
+      await update(roomRef, { grid, turn: myColor, status: 'done', winner: myColor, winCells });
+      return;
+    }
+
+    const isDraw = grid[0].every(cell => cell !== null);
+    if (isDraw) {
+      await update(roomRef, { grid, status: 'done', winner: 'draw', winCells: null });
+      return;
+    }
+
+    const nextTurn = myColor === 'red' ? 'blue' : 'red';
+    await update(roomRef, { grid, turn: nextTurn });
+  } finally {
+    isProcessing = false;
   }
-  if (row === -1) return;
-
-  grid[row][col] = myColor;
-
-  const winCells = checkWin(grid, row, col, myColor);
-  if (winCells) {
-    await update(roomRef, { grid, turn: myColor, status: 'done', winner: myColor, winCells });
-    return;
-  }
-
-  const isDraw = grid[0].every(cell => cell !== null);
-  if (isDraw) {
-    await update(roomRef, { grid, status: 'done', winner: 'draw', winCells: null });
-    return;
-  }
-
-  const nextTurn = myColor === 'red' ? 'blue' : 'red';
-  await update(roomRef, { grid, turn: nextTurn });
 }
 
 // ── Win check ──
