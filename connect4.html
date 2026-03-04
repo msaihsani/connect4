@@ -179,9 +179,9 @@
       position: relative;
     }
 
-    .cell:hover:not(.red):not(.blue) { background: #2a2a2a; }
-    .cell.red:hover  { background: #ff4136; }
-    .cell.blue:hover { background: #0074d9; }
+    .cell:hover:not(.red):not(.blue):not(.no-hover) { background: #2a2a2a; }
+    .cell.red:hover  { background: #ff4136 !important; }
+    .cell.blue:hover { background: #0074d9 !important; }
     @media (hover: none) {
       .cell:hover { background: #111 !important; }
       .cell.red:hover  { background: #ff4136 !important; }
