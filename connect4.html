@@ -262,6 +262,7 @@
     <button class="game-btn" id="btn-leave">🚪 Keluar</button>
   </div>
   <div id="debug-log" style="font-size:0.7rem;color:#666;margin-top:8px;min-height:16px;letter-spacing:1px;"></div>
+  <div id="debug-color" style="font-size:0.7rem;color:#555;letter-spacing:1px;"></div>
 </div>
 
 <script type="module">
@@ -428,6 +429,8 @@ async function joinRoom(code) {
   await update(roomRef, { blue: true, status: 'playing', turn: firstTurn });
   showScreen('game');
   buildBoard();
+  const dc = document.getElementById('debug-color');
+  if (dc) dc.textContent = `kamu: ${myColor}`;
   listenRoom();
 }
 
@@ -465,6 +468,8 @@ function listenRoom() {
     if (data.status === 'playing' && waitingEl.style.display !== 'none') {
       showScreen('game');
       buildBoard();
+      const dc = document.getElementById('debug-color');
+      if (dc) dc.textContent = `kamu: ${myColor}`;
     }
 
     if (data.status === 'playing' || data.status === 'done') {
